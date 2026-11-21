@@ -103,7 +103,7 @@
 <div class="page">
   <header><a href={import.meta.env.BASE_URL}>photo formatter</a></header><hr />
   <main>
-    <section class="intro"><h1>generate photo grid</h1><p>Pick your photos, adjust the crop, and download a print-ready image.</p></section>
+    <section class="intro"><h1>generate photo grid</h1><p>Pick your photos, adjust the crop, and download a print-ready image. Preview lines show the variable print edges for Canon SELPHY printers.</p></section>
     <div class="workspace">
       <section class="preview-section" aria-label="Print preview">
         <div class="preview-heading"><span>print preview</span><span>{rotated ? '1800 × 1200' : '1200 × 1800'} px</span></div>
@@ -120,13 +120,13 @@
           {/each}
           <div class="guide left"></div><div class="guide right"></div>
         </div></div>
+        <div class="control-block"><h2>adjust the crop</h2>{#if current}<label for="zoom">photo {selected + 1} zoom <span>{current.zoom.toFixed(1)}×</span></label><input id="zoom" type="range" min="1" max="4" step="0.01" bind:value={current.zoom} /><button class="text-button" onclick={() => { if (current) { current.zoom = 1; current.x = .5; current.y = .5; } }}>reset crop</button>{:else}<p>Choose a photo to adjust its crop.</p>{/if}</div>
         <p class="guide-note"><span></span> Red dotted lines show the variable print edge.</p>
       </section>
       <section class="controls" aria-label="Photo controls">
         <div class="control-block"><h2>1. choose a layout</h2><div class="layout-buttons"><button class:active={layout === 'grid'} onclick={() => setLayout('grid')}>4 photos <small>2 × 2</small></button><button class:active={layout === 'stack'} onclick={() => setLayout('stack')}>2 photos <small>stacked</small></button></div><button class="outline" onclick={() => rotated = !rotated}>↻ {rotated ? 'rotate back to portrait' : 'rotate print to landscape'}</button></div>
         <div class="control-block"><h2>2. add your photos</h2><p>Choose up to {count} photos. JPEG, PNG and HEIC are welcome.</p><input bind:this={input} type="file" accept="image/*,.heic,.heif" multiple onchange={choose} hidden /><button class="outline" onclick={() => input.click()} disabled={busy}>{busy ? 'opening photos…' : current ? `replace photo ${selected + 1}` : 'choose photos'}</button><p class="hint">Select a photo in the preview to edit it. Drag to reposition.</p></div>
-        <div class="control-block"><h2>3. adjust the crop</h2>{#if current}<label for="zoom">photo {selected + 1} zoom <span>{current.zoom.toFixed(1)}×</span></label><input id="zoom" type="range" min="1" max="4" step="0.01" bind:value={current.zoom} /><button class="text-button" onclick={() => { if (current) { current.zoom = 1; current.x = .5; current.y = .5; } }}>reset crop</button>{:else}<p>Choose a photo to adjust its crop.</p>{/if}</div>
-        <div class="control-block"><h2>4. save your print</h2><button class="download" disabled={!ready || busy} onclick={download}>download image ↓</button><p class="hint">Your photos stay on your device.</p></div>
+        <div class="control-block"><h2>3. save your print</h2><button class="download" disabled={!ready || busy} onclick={download}>download image ↓</button><p class="hint">Your photos stay on your device.</p></div>
         {#if error}<p class="error" role="alert">{error}</p>{/if}
       </section>
     </div>
