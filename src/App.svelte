@@ -15,6 +15,10 @@
   let count = $derived(layout === 'grid' ? 4 : 2);
   let current = $derived(photos[selected]);
   let ready = $derived(photos.slice(0, count).every(Boolean));
+  function photoNumber(index: number) {
+    if (!rotated) return index + 1;
+    return layout === 'grid' ? [2, 4, 1, 3][index] : 2 - index;
+  }
 
   function decode(blob: Blob): Promise<{ url: string; image: HTMLImageElement }> {
     return new Promise((resolve, reject) => {
@@ -42,19 +46,26 @@
     el.value = '';
     if (!files.length) return;
     busy = true; error = '';
-    let index = selected;
+    const order = Array.from({ length: count }, (_, index) => index).sort((a, b) => photoNumber(a) - photoNumber(b));
+    const targets = order.slice(order.indexOf(selected));
+    let loaded = 0;
     try {
-      for (const file of files.slice(0, count - index)) {
+      for (const file of files.slice(0, targets.length)) {
+        const index = targets[loaded];
         const photo = await load(file);
         if (photos[index]) URL.revokeObjectURL(photos[index]!.url);
         photos[index] = photo;
-        index++;
+        loaded++;
       }
-    } catch (e) { error = `Couldn't open ${files[index - selected]?.name ?? 'that photo'}. Try a JPEG or PNG instead.`; console.error(e); }
+    } catch (e) { error = `Couldn't open ${files[loaded]?.name ?? 'that photo'}. Try a JPEG or PNG instead.`; console.error(e); }
     finally { busy = false; }
   }
   function setLayout(value: 'grid' | 'stack') { layout = value; selected = Math.min(selected, value === 'grid' ? 3 : 1); }
   function select(index: number) { selected = index; }
+  function rotate() {
+    rotated = !rotated;
+    if (!photos[selected]) selected = rotated ? (layout === 'grid' ? 2 : 1) : 0;
+  }
   function add(index: number) { selected = index; input.click(); }
   function startDrag(event: PointerEvent, index: number) {
     if (!photos[index]) return;
@@ -109,23 +120,23 @@
         <div class="preview-heading"><span>print preview</span><span>{rotated ? '1800 × 1200' : '1200 × 1800'} px</span></div>
         <div class:rotated class="stage-frame"><div class:stack={layout === 'stack'} class="stage" bind:this={stage}>
           {#each Array(count) as _, i}
-            <div class:selected={selected === i} class="cell" role="group" aria-label={`Photo ${i + 1}`} onpointerdown={(e) => startDrag(e, i)} onpointermove={moveDrag} onpointerup={() => drag = null} onpointercancel={() => drag = null}>
+            <div class:selected={selected === i} class="cell" role="group" aria-label={`Photo ${photoNumber(i)}`} onpointerdown={(e) => startDrag(e, i)} onpointermove={moveDrag} onpointerup={() => drag = null} onpointercancel={() => drag = null}>
               {#if photos[i]}
                 <img src={photos[i]!.url} alt="" draggable="false" style={imageStyle(photos[i]!)} />
-                <button class="cell-select" aria-label={`Select photo ${i + 1} for editing`} onclick={() => select(i)}></button>
+                <button class="cell-select" aria-label={`Select photo ${photoNumber(i)} for editing`} onclick={() => select(i)}></button>
               {:else}
-                <button class="add-photo" onclick={() => add(i)} disabled={busy}><span class="add-photo-content"><span class="add-photo-plus">+</span> add photo {i + 1}</span></button>
+                <button class="add-photo" onclick={() => add(i)} disabled={busy}><span class="add-photo-content"><span class="add-photo-plus">+</span> add photo {photoNumber(i)}</span></button>
               {/if}
             </div>
           {/each}
           <div class="guide left"></div><div class="guide right"></div>
         </div></div>
-        <div class="control-block"><h2>adjust the crop</h2>{#if current}<label for="zoom">photo {selected + 1} zoom <span>{current.zoom.toFixed(1)}×</span></label><input id="zoom" type="range" min="1" max="4" step="0.01" bind:value={current.zoom} /><button class="text-button" onclick={() => { if (current) { current.zoom = 1; current.x = .5; current.y = .5; } }}>reset crop</button>{:else}<p>Choose a photo to adjust its crop.</p>{/if}</div>
+        <div class="control-block"><h2>adjust the crop</h2>{#if current}<label for="zoom">photo {photoNumber(selected)} zoom <span>{current.zoom.toFixed(1)}×</span></label><input id="zoom" type="range" min="1" max="4" step="0.01" bind:value={current.zoom} /><button class="text-button" onclick={() => { if (current) { current.zoom = 1; current.x = .5; current.y = .5; } }}>reset crop</button>{:else}<p>Choose a photo to adjust its crop.</p>{/if}</div>
         <p class="guide-note"><span></span> Red dotted lines show the variable print edge.</p>
       </section>
       <section class="controls" aria-label="Photo controls">
-        <div class="control-block"><h2>1. choose a layout</h2><div class="layout-buttons"><button class:active={layout === 'grid'} onclick={() => setLayout('grid')}>4 photos <small>2 × 2</small></button><button class:active={layout === 'stack'} onclick={() => setLayout('stack')}>2 photos <small>stacked</small></button></div><button class="outline" onclick={() => rotated = !rotated}>↻ {rotated ? 'rotate back to portrait' : 'rotate print to landscape'}</button></div>
-        <div class="control-block"><h2>2. add your photos</h2><p>Choose up to {count} photos. JPEG, PNG and HEIC are welcome.</p><input bind:this={input} type="file" accept="image/*,.heic,.heif" multiple onchange={choose} hidden /><button class="outline" onclick={() => input.click()} disabled={busy}>{busy ? 'opening photos…' : current ? `replace photo ${selected + 1}` : 'choose photos'}</button><p class="hint">Select a photo in the preview to edit it. Drag to reposition.</p></div>
+        <div class="control-block"><h2>1. choose a layout</h2><div class="layout-buttons"><button class:active={layout === 'grid'} onclick={() => setLayout('grid')}>4 photos <small>2 × 2</small></button><button class:active={layout === 'stack'} onclick={() => setLayout('stack')}>2 photos <small>stacked</small></button></div><button class="outline" onclick={rotate}>↻ {rotated ? 'rotate back to portrait' : 'rotate print to landscape'}</button></div>
+        <div class="control-block"><h2>2. add your photos</h2><p>Choose up to {count} photos. JPEG, PNG and HEIC are welcome.</p><input bind:this={input} type="file" accept="image/*,.heic,.heif" multiple onchange={choose} hidden /><button class="outline" onclick={() => input.click()} disabled={busy}>{busy ? 'opening photos…' : current ? `replace photo ${photoNumber(selected)}` : 'choose photos'}</button><p class="hint">Select a photo in the preview to edit it. Drag to reposition.</p></div>
         <div class="control-block"><h2>3. save your print</h2><button class="download" disabled={!ready || busy} onclick={download}>download image ↓</button><p class="hint">Your photos stay on your device.</p></div>
         {#if error}<p class="error" role="alert">{error}</p>{/if}
       </section>
