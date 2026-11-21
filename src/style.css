@@ -2,3 +2,9 @@
 @media (prefers-color-scheme: dark){:root{color-scheme:dark;color:#eee9e2;background:#1d1b19}hr{border-top-color:#4a4641}.intro p,.controls p,.preview-heading{color:#c1b9ae}.stage{background:#332f2b;border-color:#59534c}.cell{background:#292622;border-color:#1d1b19}.cell.selected:after{border-color:rgba(255,255,255,.75)}.add-photo{color:#c0b7ab}.guide-note{color:#b6ada2}.layout-buttons button,.outline{border-color:#777067;background:#292622;color:#eee9e2}.layout-buttons button.active{border-color:#eee9e2;background:#484039}.layout-buttons small{color:#c1b9ae}.control-block{border-bottom-color:#4a4641}.hint{color:#b6ada2!important}.text-button{color:#c1b9ae}.download{background:#eee9e2;color:#1d1b19;border-color:#eee9e2}.error{color:#ff9d9d}footer{color:#c1b9ae}input[type=range]{accent-color:#d5c7b5}}
 
 .stage-frame.rotated{position:relative;aspect-ratio:3/2}.stage-frame.rotated .stage{position:absolute;width:66.6667%;left:50%;top:50%;transform:translate(-50%,-50%) rotate(90deg)}
+.cell .photo-canvas{position:absolute;max-width:none;pointer-events:none}
+.cell.selected:after{border:0;background:radial-gradient(circle,#1683e8 2px,transparent 2.5px) left top/12px 4px repeat-x,radial-gradient(circle,#1683e8 2px,transparent 2.5px) left bottom/12px 4px repeat-x,radial-gradient(circle,#1683e8 2px,transparent 2.5px) left top/4px 12px repeat-y,radial-gradient(circle,#1683e8 2px,transparent 2.5px) right top/4px 12px repeat-y}
+.stage-frame.rotated .guide{left:0;right:0;top:auto;bottom:auto;border-left:0;border-top:2px dotted #d34e4e}
+.stage-frame.rotated .guide.left{top:4.1667%}
+.stage-frame.rotated .guide.right{bottom:4.1667%}
+.rotate-photo{margin-left:18px}

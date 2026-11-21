@@ -15,7 +15,7 @@ Arrange two or four photos into a print-ready grid. Adjust each crop and downloa
 
 ## Printing and privacy
 
-The red dotted preview lines sit 75 pixels in from each side of the portrait composition and are not included in the downloaded image. Allow for print variation when positioning photos.
+The red dotted preview lines sit 75 pixels in from the left and right edges of the output and are not included in the downloaded image. Allow for print variation when positioning photos.
 
 Photos are processed on your device. HEIC and HEIF files use a local conversion fallback when the browser cannot open them directly.
 

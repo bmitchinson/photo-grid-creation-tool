@@ -2,7 +2,7 @@
   import { onDestroy } from 'svelte';
   import { cropRect, clamp } from './crop.js';
 
-  type Photo = { url: string; image: HTMLImageElement; name: string; x: number; y: number; zoom: number };
+  type Photo = { url: string; image: HTMLImageElement | HTMLCanvasElement; original: HTMLImageElement; turns: number; name: string; x: number; y: number; zoom: number };
   let photos: (Photo | null)[] = $state([null, null, null, null]);
   let layout: 'grid' | 'stack' = $state('grid');
   let selected = $state(2);
@@ -38,7 +38,7 @@
       const converted = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.95 });
       result = await decode(Array.isArray(converted) ? converted[0] : converted);
     }
-    return { ...result, name: file.name, x: .5, y: .5, zoom: 1 };
+    return { ...result, original: result.image, turns: 0, name: file.name, x: .5, y: .5, zoom: 1 };
   }
   async function choose(event: Event) {
     const el = event.currentTarget as HTMLInputElement;
@@ -66,6 +66,28 @@
     rotated = !rotated;
     if (!photos[selected]) selected = rotated ? (layout === 'grid' ? 2 : 1) : 0;
   }
+  function photoWidth(photo: Photo) { return photo.image instanceof HTMLImageElement ? photo.image.naturalWidth : photo.image.width; }
+  function photoHeight(photo: Photo) { return photo.image instanceof HTMLImageElement ? photo.image.naturalHeight : photo.image.height; }
+  function rotatePhoto() {
+    const photo = current;
+    if (!photo) return;
+    const turns = (photo.turns + 1) % 4;
+    if (turns === 0) photo.image = photo.original;
+    else {
+      const canvas = document.createElement('canvas');
+      const w = photo.original.naturalWidth, h = photo.original.naturalHeight;
+      canvas.width = turns % 2 ? h : w;
+      canvas.height = turns % 2 ? w : h;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { error = 'Could not rotate this photo.'; return; }
+      ctx.translate(canvas.width / 2, canvas.height / 2);
+      ctx.rotate(turns * Math.PI / 2);
+      ctx.drawImage(photo.original, -w / 2, -h / 2);
+      photo.image = canvas;
+    }
+    photo.turns = turns;
+    photo.x = .5; photo.y = .5;
+  }
   function add(index: number) { selected = index; input.click(); }
   function startDrag(event: PointerEvent, index: number) {
     if (!photos[index]) return;
@@ -78,9 +100,9 @@
   function moveDrag(event: PointerEvent) {
     if (!drag) return;
     const photo = photos[drag.index]; if (!photo) return;
-    const r = cropRect(photo.image.naturalWidth, photo.image.naturalHeight, layout === 'grid' ? 600 : 1200, 900, photo.zoom, drag.startX, drag.startY);
-    const extraX = photo.image.naturalWidth - r.width;
-    const extraY = photo.image.naturalHeight - r.height;
+    const r = cropRect(photoWidth(photo), photoHeight(photo), layout === 'grid' ? 600 : 1200, 900, photo.zoom, drag.startX, drag.startY);
+    const extraX = photoWidth(photo) - r.width;
+    const extraY = photoHeight(photo) - r.height;
     const dx = rotated ? event.clientY - drag.y : event.clientX - drag.x;
     const dy = rotated ? -(event.clientX - drag.x) : event.clientY - drag.y;
     photo.x = extraX ? clamp(drag.startX - dx / drag.width * r.width / extraX, 0, 1) : .5;
@@ -88,8 +110,13 @@
   }
   function imageStyle(photo: Photo) {
     const w = layout === 'grid' ? 600 : 1200;
-    const r = cropRect(photo.image.naturalWidth, photo.image.naturalHeight, w, 900, photo.zoom, photo.x, photo.y);
-    return `width:${photo.image.naturalWidth / r.width * 100}%;height:${photo.image.naturalHeight / r.height * 100}%;left:${-r.x / r.width * 100}%;top:${-r.y / r.height * 100}%`;
+    const r = cropRect(photoWidth(photo), photoHeight(photo), w, 900, photo.zoom, photo.x, photo.y);
+    return `width:${photoWidth(photo) / r.width * 100}%;height:${photoHeight(photo) / r.height * 100}%;left:${-r.x / r.width * 100}%;top:${-r.y / r.height * 100}%`;
+  }
+  function showCanvas(node: HTMLCanvasElement, source: HTMLCanvasElement) {
+    function update(image: HTMLCanvasElement) { node.width = image.width; node.height = image.height; node.getContext('2d')?.drawImage(image, 0, 0); }
+    update(source);
+    return { update };
   }
   function download() {
     error = '';
@@ -99,7 +126,7 @@
     const width = layout === 'grid' ? 600 : 1200;
     for (let i = 0; i < count; i++) {
       const p = photos[i]!;
-      const r = cropRect(p.image.naturalWidth, p.image.naturalHeight, width, 900, p.zoom, p.x, p.y);
+      const r = cropRect(photoWidth(p), photoHeight(p), width, 900, p.zoom, p.x, p.y);
       ctx.drawImage(p.image, r.x, r.y, r.width, r.height, layout === 'grid' ? (i % 2) * 600 : 0, layout === 'grid' ? Math.floor(i / 2) * 900 : i * 900, width, 900);
     }
     canvas.toBlob(blob => {
@@ -120,9 +147,9 @@
         <div class="preview-heading"><span>print preview</span><span>{rotated ? '1800 × 1200' : '1200 × 1800'} px</span></div>
         <div class:rotated class="stage-frame"><div class:stack={layout === 'stack'} class="stage" bind:this={stage}>
           {#each Array(count) as _, i}
-            <div class:selected={selected === i} class="cell" role="group" aria-label={`Photo ${photoNumber(i)}`} onpointerdown={(e) => startDrag(e, i)} onpointermove={moveDrag} onpointerup={() => drag = null} onpointercancel={() => drag = null}>
+            <div class:selected={selected === i && !!photos[i]} class="cell" role="group" aria-label={`Photo ${photoNumber(i)}`} onpointerdown={(e) => startDrag(e, i)} onpointermove={moveDrag} onpointerup={() => drag = null} onpointercancel={() => drag = null}>
               {#if photos[i]}
-                <img src={photos[i]!.url} alt="" draggable="false" style={imageStyle(photos[i]!)} />
+                {#if photos[i]!.turns === 0}<img src={photos[i]!.url} alt="" draggable="false" style={imageStyle(photos[i]!)} />{:else}<canvas class="photo-canvas" use:showCanvas={photos[i]!.image as HTMLCanvasElement} style={imageStyle(photos[i]!)}></canvas>{/if}
                 <button class="cell-select" aria-label={`Select photo ${photoNumber(i)} for editing`} onclick={() => select(i)}></button>
               {:else}
                 <button class="add-photo" onclick={() => add(i)} disabled={busy}><span class="add-photo-content"><span class="add-photo-plus">+</span> add photo {photoNumber(i)}</span></button>
@@ -131,7 +158,7 @@
           {/each}
           <div class="guide left"></div><div class="guide right"></div>
         </div></div>
-        <div class="control-block"><h2>adjust the crop</h2>{#if current}<label for="zoom">photo {photoNumber(selected)} zoom <span>{current.zoom.toFixed(1)}×</span></label><input id="zoom" type="range" min="1" max="4" step="0.01" bind:value={current.zoom} /><button class="text-button" onclick={() => { if (current) { current.zoom = 1; current.x = .5; current.y = .5; } }}>reset crop</button>{:else}<p>Choose a photo to adjust its crop.</p>{/if}</div>
+        <div class="control-block"><h2>adjust the crop</h2>{#if current}<label for="zoom">photo {photoNumber(selected)} zoom <span>{current.zoom.toFixed(1)}×</span></label><input id="zoom" type="range" min="1" max="4" step="0.01" bind:value={current.zoom} /><button class="text-button" onclick={() => { if (current) { current.zoom = 1; current.x = .5; current.y = .5; } }}>reset crop</button> <button class="text-button rotate-photo" onclick={rotatePhoto}>↻ rotate photo</button>{:else}<p>Choose a photo to adjust its crop.</p>{/if}</div>
         <p class="guide-note"><span></span> Red dotted lines show the variable print edge.</p>
       </section>
       <section class="controls" aria-label="Photo controls">
