@@ -5,8 +5,8 @@
   type Photo = { url: string; image: HTMLImageElement; name: string; x: number; y: number; zoom: number };
   let photos: (Photo | null)[] = $state([null, null, null, null]);
   let layout: 'grid' | 'stack' = $state('grid');
-  let selected = $state(0);
-  let rotated = $state(false);
+  let selected = $state(2);
+  let rotated = $state(true);
   let busy = $state(false);
   let error = $state('');
   let input: HTMLInputElement;
