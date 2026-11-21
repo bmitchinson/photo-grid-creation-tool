@@ -1,8 +1,21 @@
 # Photo formatter
 
-A static, client-side tool for arranging photos into a 1200 × 1800 print. Choose a four-photo grid or two stacked photos, adjust the crops, and download the result as a JPEG. The whole composition can also be rotated to landscape.
+[Open the photo formatter](https://bmitchinson.github.io/photo-grid-creation-tool/)
 
-The red dotted preview lines indicate the variable print edges for Canon SELPHY printers. They sit 75 pixels in from each side of the portrait composition and are not included in the downloaded image. Allow for print variation when positioning photos.
+Arrange two or four photos into a print-ready grid. Adjust each crop and download the result as a JPEG in portrait or landscape. The preview shows the variable print edges for Canon SELPHY printers.
+
+![Photo formatter showing the landscape grid preview and controls](docs/screenshot.png)
+
+## How it was built
+
+- Model: OpenAI GPT-6.1 Terra
+- Coding agent: Pi, running under Herdr
+- Build machine: home lab Windows desktop running WSL
+- Remote access: Tailscale and Heeler on iOS
+
+## Printing and privacy
+
+The red dotted preview lines sit 75 pixels in from each side of the portrait composition and are not included in the downloaded image. Allow for print variation when positioning photos.
 
 Photos are processed on your device. HEIC and HEIF files use a local conversion fallback when the browser cannot open them directly.
 
