@@ -1,5 +1,9 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
+  import { initFasterFixes } from '@fasterfixes/svelte';
+
+  const feedbackProjectId = import.meta.env.VITE_FASTER_FIXES_PROJECT_ID;
+  if (feedbackProjectId) initFasterFixes({ projectId: feedbackProjectId, captureDiagnostics: false, captureRecording: false });
   import { cropRect, clamp } from './crop.js';
 
   type Photo = { url: string; image: HTMLImageElement; name: string; x: number; y: number; zoom: number };
