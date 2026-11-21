@@ -101,7 +101,7 @@
 
 <svelte:head><title>photo formatter</title><meta name="description" content="Arrange photos for printing, right in your browser." /></svelte:head>
 <div class="page">
-  <header><a href="/">photo formatter</a></header><hr />
+  <header><a href={import.meta.env.BASE_URL}>photo formatter</a></header><hr />
   <main>
     <section class="intro"><h1>generate photo grid</h1><p>Pick your photos, adjust the crop, and download a print-ready image.</p></section>
     <div class="workspace">
