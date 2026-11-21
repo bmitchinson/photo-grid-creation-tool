@@ -114,7 +114,7 @@
                 <img src={photos[i]!.url} alt="" draggable="false" style={imageStyle(photos[i]!)} />
                 <button class="cell-select" aria-label={`Select photo ${i + 1} for editing`} onclick={() => select(i)}></button>
               {:else}
-                <button class="add-photo" onclick={() => add(i)} disabled={busy}><span>+</span> add photo {i + 1}</button>
+                <button class="add-photo" onclick={() => add(i)} disabled={busy}><span class="add-photo-content"><span class="add-photo-plus">+</span> add photo {i + 1}</span></button>
               {/if}
             </div>
           {/each}
