@@ -107,7 +107,7 @@
 <div class="page">
   <header><a href="/">photo formatter</a></header><hr />
   <main>
-    <section class="intro"><h1>make a little photo print</h1><p>Pick your photos, adjust the crop, and download a print-ready image.</p></section>
+    <section class="intro"><h1>generate photo grid</h1><p>Pick your photos, adjust the crop, and download a print-ready image.</p></section>
     <div class="workspace">
       <section class="preview-section" aria-label="Print preview">
         <div class="preview-heading"><span>print preview</span><span>{rotated ? '1800 × 1200' : '1200 × 1800'} px</span></div>
@@ -135,5 +135,5 @@
       </section>
     </div>
   </main>
-  <hr /><footer>made for little printed memories <span>·</span> photos stay with you</footer>
+  <hr /><footer><a href="https://mitchinson.dev">more of my work</a></footer>
 </div>
