@@ -1,14 +1,14 @@
-# Photo formatter
-
-[Open the photo formatter](https://bmitchinson.github.io/photo-grid-creation-tool/)
+# 📷 Photo Formatter - [Visit the site](https://bmitchinson.github.io/photo-grid-creation-tool/)
 
 Arrange two, three, or four photos into a print-ready grid. Adjust each crop and download the result as a JPEG in portrait or landscape. The preview shows the variable print edges for Canon SELPHY printers.
 
-![Photo formatter showing the landscape grid preview and controls](docs/screenshot.png)
+<img src="docs/screenshot.png" alt="Photo formatter with a sample image in the two-photo layout" width="70%">
+
+Photos are processed on your device. HEIC and HEIF files use a local conversion fallback when the browser cannot open them directly.
 
 Example printed result:
 
-![Example of a printed photo grid](docs/printed-result.jpg)
+<img src="docs/printed-result.jpg" alt="Example of a printed photo grid" width="70%">
 
 ## How it was built
 
@@ -16,12 +16,6 @@ Example printed result:
 - Coding agent: Pi, running under Herdr
 - Build machine: home lab Windows desktop running WSL
 - Remote access: Tailscale and Heeler on iOS
-
-## Printing and privacy
-
-The red dotted preview lines sit 43 pixels in from the left and right edges of the output and are not included in the downloaded image. Allow for print variation when positioning photos.
-
-Photos are processed on your device. HEIC and HEIF files use a local conversion fallback when the browser cannot open them directly.
 
 ## Development
 
