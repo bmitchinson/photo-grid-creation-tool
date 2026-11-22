@@ -22,3 +22,7 @@ Photos are processed on your device. HEIC and HEIF files use a local conversion 
 ## Development
 
 Run `npm install`, then `npm run dev`. Run `npm run check`, `npm test`, and `npm run build` to verify changes. Pushes to `main` deploy to GitHub Pages.
+
+## Printer reference
+
+[Canon SELPHY CP1500 advanced user guide](docs/canon-selphy-cp1500-manual.pdf) ([original PDF](https://cam.start.canon/en/P001/manual/p001.pdf)).
