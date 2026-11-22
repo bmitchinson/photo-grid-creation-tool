@@ -2,7 +2,7 @@
   import { onDestroy } from 'svelte';
   import { cropRect, clamp, formatDate, cellBounds, visualBounds } from './crop.js';
 
-  type Photo = { url: string; image: HTMLImageElement | HTMLCanvasElement; original: HTMLImageElement; turns: number; date: string; name: string; x: number; y: number; zoom: number };
+  type Photo = { url: string; image: HTMLImageElement | HTMLCanvasElement; original: HTMLImageElement; turns: number; date: string; dateVisible?: boolean; name: string; x: number; y: number; zoom: number };
   let photos: (Photo | null)[] = $state([null, null, null, null]);
   let layout: 'grid' | 'three' | 'stack' = $state('grid');
   let selected = $state(2);
@@ -144,14 +144,15 @@
       ctx.drawImage(p.image, r.x, r.y, r.width, r.height, cell.x, cell.y, cell.width, cell.height);
     }
     ctx.restore();
-    if (showDates) {
-      const fontSize = Math.round(canvas.width * 0.025);
+    {
+      const fontSize = Math.round(canvas.width * 0.02);
       ctx.font = `bold ${fontSize}px "Courier New", monospace`;
       ctx.textAlign = 'right'; ctx.textBaseline = 'bottom'; ctx.letterSpacing = `${fontSize * .05}px`;
       ctx.fillStyle = '#ffae35'; ctx.shadowColor = '#ff8300'; ctx.shadowBlur = 4;
       ctx.strokeStyle = '#8f4218'; ctx.lineWidth = 2; ctx.lineJoin = 'round';
       visualOrder.forEach((index) => {
-        const date = formatDate(photos[index]?.date ?? ''); if (!date) return;
+        const photo = photos[index];
+        const date = formatDate(photo?.date ?? ''); if (!date || !(photo?.dateVisible ?? showDates)) return;
         const cell = visualBounds(layout, index, rotated);
         const x = cell.x + cell.width * .94;
         const y = cell.y + cell.height * .93;
@@ -187,9 +188,9 @@
           {/each}
           <div class="guide left"></div><div class="guide right"></div>
         </div>
-          {#if showDates}<div class:stacked={layout === 'stack'} class:three={layout === 'three'} class:landscape={rotated} class="date-overlay" aria-hidden="true">{#each visualOrder as index}<div class="date-cell">{#if photos[index]?.date}<span class="date-stamp">{formatDate(photos[index]!.date)}</span>{/if}</div>{/each}</div>{/if}
+          <div class:stacked={layout === 'stack'} class:three={layout === 'three'} class:landscape={rotated} class="date-overlay" aria-hidden="true">{#each visualOrder as index}<div class="date-cell">{#if photos[index]?.date && (photos[index]?.dateVisible ?? showDates)}<span class="date-stamp">{formatDate(photos[index]!.date)}</span>{/if}</div>{/each}</div>
         </div>
-        <div class="control-block image-controls" class:disabled={!current}><h2>photo controls{current ? ` · photo ${photoNumber(selected)}` : ''}</h2>{#if current}<label for="zoom">photo {photoNumber(selected)} zoom <span>{current.zoom.toFixed(1)}×</span></label><input id="zoom" type="range" min="1" max="4" step="0.01" bind:value={current.zoom} /><button class="text-button" onclick={() => { if (current) { current.zoom = 1; current.x = .5; current.y = .5; } }}>reset crop</button> <button class="text-button rotate-photo" onclick={rotatePhoto}>↻ rotate photo</button><label class="date-label" for="photo-date">photo date</label><input id="photo-date" type="date" bind:value={current.date} /><p class="hint">Leave blank to omit the date for this photo.</p>{:else}<fieldset disabled><label for="zoom-disabled">zoom</label><input id="zoom-disabled" type="range" /><button class="text-button" type="button">reset crop</button> <button class="text-button rotate-photo" type="button">↻ rotate photo</button><label class="date-label" for="date-disabled">photo date</label><input id="date-disabled" type="date" /></fieldset><p class="hint">Select a photo to adjust it.</p>{/if}</div>
+        <div class="control-block image-controls" class:disabled={!current}><h2>photo controls{current ? ` · photo ${photoNumber(selected)}` : ''}</h2>{#if current}<label for="zoom">photo {photoNumber(selected)} zoom <span>{current.zoom.toFixed(1)}×</span></label><input id="zoom" type="range" min="1" max="4" step="0.01" bind:value={current.zoom} /><button class="text-button" onclick={() => { if (current) { current.zoom = 1; current.x = .5; current.y = .5; } }}>reset crop</button> <button class="text-button rotate-photo" onclick={rotatePhoto}>↻ rotate photo</button><label class="date-label" for="photo-date">photo date</label><input id="photo-date" type="date" bind:value={current.date} /><label class="date-toggle photo-date-toggle"><input type="checkbox" checked={current.dateVisible ?? showDates} onchange={(event) => { if (current) current.dateVisible = event.currentTarget.checked; }} /> override grid setting: show date</label>{#if current.dateVisible !== undefined}<button class="text-button" onclick={() => { if (current) current.dateVisible = undefined; }}>use grid setting</button>{/if}<p class="hint">Leave blank to omit the date for this photo.</p>{:else}<fieldset disabled><label for="zoom-disabled">zoom</label><input id="zoom-disabled" type="range" /><button class="text-button" type="button">reset crop</button> <button class="text-button rotate-photo" type="button">↻ rotate photo</button><label class="date-label" for="date-disabled">photo date</label><input id="date-disabled" type="date" /><label class="date-toggle photo-date-toggle"><input type="checkbox" /> override grid setting: show date</label></fieldset><p class="hint">Select a photo to adjust it.</p>{/if}</div>
         <p class="guide-note"><span></span> Red dotted lines show the variable print edge.</p>
       </section>
       <section class="controls" aria-label="Photo controls">
