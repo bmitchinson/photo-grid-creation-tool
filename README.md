@@ -6,6 +6,10 @@ Arrange two, three, or four photos into a print-ready grid. Adjust each crop and
 
 ![Photo formatter showing the landscape grid preview and controls](docs/screenshot.png)
 
+Example printed result:
+
+![Example of a printed photo grid](docs/printed-result.jpg)
+
 ## How it was built
 
 - Model: OpenAI GPT-6.1 Terra
