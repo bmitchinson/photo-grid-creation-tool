@@ -31,7 +31,7 @@ export function dateMargins(layout, index, rotated) {
   const outputHeight = rotated ? 1200 : 1800;
   let right = cell.width * 0.054;
   let bottom = cell.height * 0.042;
-  if (cell.x + cell.width === outputWidth) right = Math.max(right, 43 + 12);
+  if (cell.x + cell.width === outputWidth) right = Math.max(right, 43 + 32);
   if (layout === 'three' && rotated && cell.y + cell.height === outputHeight) bottom = outputHeight * 0.042;
   return { right, bottom };
 }

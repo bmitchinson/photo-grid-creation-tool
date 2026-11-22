@@ -27,7 +27,7 @@ test('date margins align the lower three-photo stamps and clear the right guide'
   const lowerRight = dateMargins('three', 1, true);
   const upperRight = dateMargins('three', 0, true);
   assert.equal(lowerRight.bottom, large.bottom);
-  assert.equal(lowerRight.right, 55);
-  assert.equal(upperRight.right, 55);
+  assert.equal(lowerRight.right, 75);
+  assert.equal(upperRight.right, 75);
   assert.equal(large.right, 900 * 0.054);
 });
