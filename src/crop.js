@@ -23,3 +23,15 @@ export function visualBounds(layout, index, rotated) {
   const rect = cellBounds(layout, index);
   return rotated ? { x: 1800 - rect.y - rect.height, y: rect.x, width: rect.height, height: rect.width } : rect;
 }
+
+/** Stamp margins in output pixels, including clearance from the print guide. */
+export function dateMargins(layout, index, rotated) {
+  const cell = visualBounds(layout, index, rotated);
+  const outputWidth = rotated ? 1800 : 1200;
+  const outputHeight = rotated ? 1200 : 1800;
+  let right = cell.width * 0.054;
+  let bottom = cell.height * 0.042;
+  if (cell.x + cell.width === outputWidth) right = Math.max(right, 43 + 12);
+  if (layout === 'three' && rotated && cell.y + cell.height === outputHeight) bottom = outputHeight * 0.042;
+  return { right, bottom };
+}

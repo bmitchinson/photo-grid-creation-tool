@@ -20,3 +20,14 @@ test('three-photo layout has one full-width and two half-width cells', async () 
   assert.deepEqual(visualBounds('three', 0, true), { x: 900, y: 0, width: 900, height: 600 });
   assert.deepEqual(visualBounds('three', 1, true), { x: 900, y: 600, width: 900, height: 600 });
 });
+
+test('date margins align the lower three-photo stamps and clear the right guide', async () => {
+  const { dateMargins } = await import('./crop.js');
+  const large = dateMargins('three', 2, true);
+  const lowerRight = dateMargins('three', 1, true);
+  const upperRight = dateMargins('three', 0, true);
+  assert.equal(lowerRight.bottom, large.bottom);
+  assert.equal(lowerRight.right, 55);
+  assert.equal(upperRight.right, 55);
+  assert.equal(large.right, 900 * 0.054);
+});
