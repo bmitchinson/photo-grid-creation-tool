@@ -208,5 +208,5 @@
       </section>
     </div>
   </main>
-  <hr /><footer><a href="https://mitchinson.dev">more of my work</a></footer>
+  <hr /><footer><a href="https://mitchinson.dev">more of my work</a> - {__BUILD_SHA__}</footer>
 </div>
