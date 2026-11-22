@@ -145,7 +145,7 @@
     }
     ctx.restore();
     {
-      const fontSize = Math.round(canvas.width * 0.02);
+      const fontSize = Math.round(canvas.width * 0.016);
       ctx.font = `bold ${fontSize}px "Courier New", monospace`;
       ctx.textAlign = 'right'; ctx.textBaseline = 'bottom'; ctx.letterSpacing = `${fontSize * .05}px`;
       ctx.fillStyle = '#ffae35'; ctx.shadowColor = '#ff8300'; ctx.shadowBlur = 4;
@@ -154,8 +154,8 @@
         const photo = photos[index];
         const date = formatDate(photo?.date ?? ''); if (!date || !(photo?.dateVisible ?? showDates)) return;
         const cell = visualBounds(layout, index, rotated);
-        const x = cell.x + cell.width * .94;
-        const y = cell.y + cell.height * .93;
+        const x = cell.x + cell.width * .946;
+        const y = cell.y + cell.height * .958;
         ctx.strokeText(date, x, y); ctx.fillText(date, x, y);
       });
     }
