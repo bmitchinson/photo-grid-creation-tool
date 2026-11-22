@@ -1,10 +1,10 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
-  import { cropRect, clamp, formatDate } from './crop.js';
+  import { cropRect, clamp, formatDate, cellBounds, visualBounds } from './crop.js';
 
   type Photo = { url: string; image: HTMLImageElement | HTMLCanvasElement; original: HTMLImageElement; turns: number; date: string; name: string; x: number; y: number; zoom: number };
   let photos: (Photo | null)[] = $state([null, null, null, null]);
-  let layout: 'grid' | 'stack' = $state('grid');
+  let layout: 'grid' | 'three' | 'stack' = $state('grid');
   let selected = $state(2);
   let rotated = $state(true);
   let showDates = $state(false);
@@ -14,13 +14,13 @@
   let input: HTMLInputElement;
   let stage: HTMLDivElement;
   let drag: { index: number; x: number; y: number; startX: number; startY: number; width: number; height: number } | null = null;
-  let count = $derived(layout === 'grid' ? 4 : 2);
+  let count = $derived(layout === 'grid' ? 4 : layout === 'three' ? 3 : 2);
   let current = $derived(photos[selected]);
   let ready = $derived(photos.slice(0, count).every(Boolean));
   let visualOrder = $derived(Array.from({ length: count }, (_, index) => index).sort((a, b) => photoNumber(a) - photoNumber(b)));
   function photoNumber(index: number) {
     if (!rotated) return index + 1;
-    return layout === 'grid' ? [2, 4, 1, 3][index] : 2 - index;
+    return layout === 'grid' ? [2, 4, 1, 3][index] : layout === 'three' ? [2, 3, 1][index] : 2 - index;
   }
 
   function decode(blob: Blob): Promise<{ url: string; image: HTMLImageElement }> {
@@ -72,7 +72,7 @@
     } catch (e) { error = `Couldn't open ${files[loaded]?.name ?? 'that photo'}. Try a JPEG or PNG instead.`; console.error(e); }
     finally { busy = false; }
   }
-  function setLayout(value: 'grid' | 'stack') { layout = value; if (selected >= (value === 'grid' ? 4 : 2)) selected = -1; }
+  function setLayout(value: 'grid' | 'three' | 'stack') { layout = value; if (selected >= (value === 'grid' ? 4 : value === 'three' ? 3 : 2)) selected = -1; }
   function select(index: number) { if (dragged) { dragged = false; selected = index; return; } selected = selected === index ? -1 : index; }
   function rotate() {
     rotated = !rotated;
@@ -113,7 +113,7 @@
     if (!drag) return;
     const photo = photos[drag.index]; if (!photo) return;
     if (Math.hypot(event.clientX - drag.x, event.clientY - drag.y) > 3) { dragged = true; selected = drag.index; }
-    const r = cropRect(photoWidth(photo), photoHeight(photo), layout === 'grid' ? 600 : 1200, 900, photo.zoom, drag.startX, drag.startY);
+    const r = cropRect(photoWidth(photo), photoHeight(photo), cellBounds(layout, drag.index).width, 900, photo.zoom, drag.startX, drag.startY);
     const extraX = photoWidth(photo) - r.width;
     const extraY = photoHeight(photo) - r.height;
     const dx = rotated ? event.clientY - drag.y : event.clientX - drag.x;
@@ -121,8 +121,8 @@
     photo.x = extraX ? clamp(drag.startX - dx / drag.width * r.width / extraX, 0, 1) : .5;
     photo.y = extraY ? clamp(drag.startY - dy / drag.height * r.height / extraY, 0, 1) : .5;
   }
-  function imageStyle(photo: Photo) {
-    const w = layout === 'grid' ? 600 : 1200;
+  function imageStyle(photo: Photo, index: number) {
+    const w = cellBounds(layout, index).width;
     const r = cropRect(photoWidth(photo), photoHeight(photo), w, 900, photo.zoom, photo.x, photo.y);
     return `width:${photoWidth(photo) / r.width * 100}%;height:${photoHeight(photo) / r.height * 100}%;left:${-r.x / r.width * 100}%;top:${-r.y / r.height * 100}%`;
   }
@@ -137,26 +137,24 @@
     const ctx = canvas.getContext('2d'); if (!ctx) { error = 'Your browser could not create the image.'; return; }
     ctx.save();
     if (rotated) { ctx.translate(1800, 0); ctx.rotate(Math.PI / 2); }
-    const width = layout === 'grid' ? 600 : 1200;
     for (let i = 0; i < count; i++) {
       const p = photos[i]!;
-      const r = cropRect(photoWidth(p), photoHeight(p), width, 900, p.zoom, p.x, p.y);
-      ctx.drawImage(p.image, r.x, r.y, r.width, r.height, layout === 'grid' ? (i % 2) * 600 : 0, layout === 'grid' ? Math.floor(i / 2) * 900 : i * 900, width, 900);
+      const cell = cellBounds(layout, i);
+      const r = cropRect(photoWidth(p), photoHeight(p), cell.width, cell.height, p.zoom, p.x, p.y);
+      ctx.drawImage(p.image, r.x, r.y, r.width, r.height, cell.x, cell.y, cell.width, cell.height);
     }
     ctx.restore();
     if (showDates) {
-      const cellWidth = rotated ? 900 : (layout === 'grid' ? 600 : 1200);
-      const cellHeight = rotated ? (layout === 'grid' ? 600 : 1200) : 900;
-      const columns = rotated || layout === 'grid' ? 2 : 1;
       const fontSize = Math.round(canvas.width * 0.025);
       ctx.font = `bold ${fontSize}px "Courier New", monospace`;
       ctx.textAlign = 'right'; ctx.textBaseline = 'bottom'; ctx.letterSpacing = `${fontSize * .05}px`;
       ctx.fillStyle = '#ffae35'; ctx.shadowColor = '#ff8300'; ctx.shadowBlur = 4;
       ctx.strokeStyle = '#8f4218'; ctx.lineWidth = 2; ctx.lineJoin = 'round';
-      visualOrder.forEach((index, position) => {
+      visualOrder.forEach((index) => {
         const date = formatDate(photos[index]?.date ?? ''); if (!date) return;
-        const x = (position % columns + 1) * cellWidth - cellWidth * .06;
-        const y = (Math.floor(position / columns) + 1) * cellHeight - cellHeight * .07;
+        const cell = visualBounds(layout, index, rotated);
+        const x = cell.x + cell.width * .94;
+        const y = cell.y + cell.height * .93;
         ctx.strokeText(date, x, y); ctx.fillText(date, x, y);
       });
     }
@@ -176,11 +174,11 @@
     <div class="workspace">
       <section class="preview-section" aria-label="Print preview">
         <div class="preview-heading"><span>print preview</span><span>{rotated ? '1800 × 1200' : '1200 × 1800'} px</span></div>
-        <div class:rotated class="stage-frame"><div class:stack={layout === 'stack'} class="stage" bind:this={stage}>
+        <div class:rotated class="stage-frame"><div class:stack={layout === 'stack'} class:three={layout === 'three'} class="stage" bind:this={stage}>
           {#each Array(count) as _, i}
             <div class:selected={selected === i && !!photos[i]} class="cell" role="group" aria-label={`Photo ${photoNumber(i)}`} onpointerdown={(e) => startDrag(e, i)} onpointermove={moveDrag} onpointerup={() => drag = null} onpointercancel={() => drag = null}>
               {#if photos[i]}
-                {#if photos[i]!.turns === 0}<img src={photos[i]!.url} alt="" draggable="false" style={imageStyle(photos[i]!)} />{:else}<canvas class="photo-canvas" use:showCanvas={photos[i]!.image as HTMLCanvasElement} style={imageStyle(photos[i]!)}></canvas>{/if}
+                {#if photos[i]!.turns === 0}<img src={photos[i]!.url} alt="" draggable="false" style={imageStyle(photos[i]!, i)} />{:else}<canvas class="photo-canvas" use:showCanvas={photos[i]!.image as HTMLCanvasElement} style={imageStyle(photos[i]!, i)}></canvas>{/if}
                 <button class="cell-select" aria-label={`Select photo ${photoNumber(i)} for editing`} onclick={() => select(i)}></button>
               {:else}
                 <button class="add-photo" onclick={() => add(i)} disabled={busy}><span class="add-photo-content"><span class="add-photo-plus">+</span> add photo {photoNumber(i)}</span></button>
@@ -189,13 +187,13 @@
           {/each}
           <div class="guide left"></div><div class="guide right"></div>
         </div>
-          {#if showDates}<div class:stacked={layout === 'stack'} class:landscape={rotated} class="date-overlay" aria-hidden="true">{#each visualOrder as index}<div class="date-cell">{#if photos[index]?.date}<span class="date-stamp">{formatDate(photos[index]!.date)}</span>{/if}</div>{/each}</div>{/if}
+          {#if showDates}<div class:stacked={layout === 'stack'} class:three={layout === 'three'} class:landscape={rotated} class="date-overlay" aria-hidden="true">{#each visualOrder as index}<div class="date-cell">{#if photos[index]?.date}<span class="date-stamp">{formatDate(photos[index]!.date)}</span>{/if}</div>{/each}</div>{/if}
         </div>
         <div class="control-block image-controls" class:disabled={!current}><h2>photo controls{current ? ` · photo ${photoNumber(selected)}` : ''}</h2>{#if current}<label for="zoom">photo {photoNumber(selected)} zoom <span>{current.zoom.toFixed(1)}×</span></label><input id="zoom" type="range" min="1" max="4" step="0.01" bind:value={current.zoom} /><button class="text-button" onclick={() => { if (current) { current.zoom = 1; current.x = .5; current.y = .5; } }}>reset crop</button> <button class="text-button rotate-photo" onclick={rotatePhoto}>↻ rotate photo</button><label class="date-label" for="photo-date">photo date</label><input id="photo-date" type="date" bind:value={current.date} /><p class="hint">Leave blank to omit the date for this photo.</p>{:else}<fieldset disabled><label for="zoom-disabled">zoom</label><input id="zoom-disabled" type="range" /><button class="text-button" type="button">reset crop</button> <button class="text-button rotate-photo" type="button">↻ rotate photo</button><label class="date-label" for="date-disabled">photo date</label><input id="date-disabled" type="date" /></fieldset><p class="hint">Select a photo to adjust it.</p>{/if}</div>
         <p class="guide-note"><span></span> Red dotted lines show the variable print edge.</p>
       </section>
       <section class="controls" aria-label="Photo controls">
-        <div class="control-block"><h2>1. choose a layout</h2><div class="layout-buttons"><button class:active={layout === 'grid'} onclick={() => setLayout('grid')}>4 photos <small>2 × 2</small></button><button class:active={layout === 'stack'} onclick={() => setLayout('stack')}>2 photos <small>stacked</small></button></div><button class="outline" onclick={rotate}>↻ {rotated ? 'rotate back to portrait' : 'rotate print to landscape'}</button></div>
+        <div class="control-block"><h2>1. choose a layout</h2><div class="layout-buttons"><button class:active={layout === 'grid'} onclick={() => setLayout('grid')}>4 photos <small>2 × 2</small></button><button class:active={layout === 'three'} onclick={() => setLayout('three')}>3 photos <small>mixed</small></button><button class:active={layout === 'stack'} onclick={() => setLayout('stack')}>2 photos <small>stacked</small></button></div><button class="outline" onclick={rotate}>↻ {rotated ? 'rotate back to portrait' : 'rotate print to landscape'}</button></div>
         <div class="control-block"><h2>2. add your photos</h2><p>Choose up to {count} photos. JPEG, PNG and HEIC are welcome.</p><input bind:this={input} type="file" accept="image/*,.heic,.heif" multiple onchange={choose} hidden /><button class="outline" onclick={() => { if (selected < 0) selected = visualOrder[0]; input.click(); }} disabled={busy}>{busy ? 'opening photos…' : current ? `replace photo ${photoNumber(selected)}` : 'choose photos'}</button><p class="hint">Select a photo in the preview to edit it. Drag to reposition.</p></div>
         <div class="control-block"><h2>print options</h2><label class="date-toggle"><input type="checkbox" bind:checked={showDates} /> show photo dates</label><p class="hint">Dates come from photo metadata when available. Select a photo to change its date.</p></div>
         <div class="control-block"><h2>3. save your print</h2><button class="download" disabled={!ready || busy} onclick={download}>download image ↓</button><p class="hint">Your photos stay on your device.</p></div>

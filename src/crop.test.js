@@ -12,3 +12,11 @@ test('date stamps use month/day/year and omit missing dates', () => {
   assert.equal(formatDate('2026-01-02'), '01/02/2026');
   assert.equal(formatDate(''), '');
 });
+
+test('three-photo layout has one full-width and two half-width cells', async () => {
+  const { cellBounds, visualBounds } = await import('./crop.js');
+  assert.deepEqual(cellBounds('three', 2), { x: 0, y: 900, width: 1200, height: 900 });
+  assert.deepEqual(visualBounds('three', 2, true), { x: 0, y: 0, width: 900, height: 1200 });
+  assert.deepEqual(visualBounds('three', 0, true), { x: 900, y: 0, width: 900, height: 600 });
+  assert.deepEqual(visualBounds('three', 1, true), { x: 900, y: 600, width: 900, height: 600 });
+});

@@ -11,3 +11,15 @@ export function formatDate(date) {
   const [year, month, day] = date.split('-');
   return year && month && day ? `${month}/${day}/${year}` : '';
 }
+
+/** Cell bounds in the unrotated 1200 x 1800 composition. */
+export function cellBounds(layout, index) {
+  if (layout === 'stack') return { x: 0, y: index * 900, width: 1200, height: 900 };
+  if (layout === 'three' && index === 2) return { x: 0, y: 900, width: 1200, height: 900 };
+  return { x: (index % 2) * 600, y: Math.floor(index / 2) * 900, width: 600, height: 900 };
+}
+
+export function visualBounds(layout, index, rotated) {
+  const rect = cellBounds(layout, index);
+  return rotated ? { x: 1800 - rect.y - rect.height, y: rect.x, width: rect.height, height: rect.width } : rect;
+}

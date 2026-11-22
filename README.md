@@ -2,7 +2,7 @@
 
 [Open the photo formatter](https://bmitchinson.github.io/photo-grid-creation-tool/)
 
-Arrange two or four photos into a print-ready grid. Adjust each crop and download the result as a JPEG in portrait or landscape. The preview shows the variable print edges for Canon SELPHY printers.
+Arrange two, three, or four photos into a print-ready grid. Adjust each crop and download the result as a JPEG in portrait or landscape. The preview shows the variable print edges for Canon SELPHY printers.
 
 ![Photo formatter showing the landscape grid preview and controls](docs/screenshot.png)
 
