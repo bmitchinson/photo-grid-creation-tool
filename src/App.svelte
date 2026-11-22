@@ -1,12 +1,14 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
-  import { cropRect, clamp } from './crop.js';
+  import { cropRect, clamp, formatDate } from './crop.js';
 
-  type Photo = { url: string; image: HTMLImageElement | HTMLCanvasElement; original: HTMLImageElement; turns: number; name: string; x: number; y: number; zoom: number };
+  type Photo = { url: string; image: HTMLImageElement | HTMLCanvasElement; original: HTMLImageElement; turns: number; date: string; name: string; x: number; y: number; zoom: number };
   let photos: (Photo | null)[] = $state([null, null, null, null]);
   let layout: 'grid' | 'stack' = $state('grid');
   let selected = $state(2);
   let rotated = $state(true);
+  let showDates = $state(false);
+  let dragged = false;
   let busy = $state(false);
   let error = $state('');
   let input: HTMLInputElement;
@@ -15,6 +17,7 @@
   let count = $derived(layout === 'grid' ? 4 : 2);
   let current = $derived(photos[selected]);
   let ready = $derived(photos.slice(0, count).every(Boolean));
+  let visualOrder = $derived(Array.from({ length: count }, (_, index) => index).sort((a, b) => photoNumber(a) - photoNumber(b)));
   function photoNumber(index: number) {
     if (!rotated) return index + 1;
     return layout === 'grid' ? [2, 4, 1, 3][index] : 2 - index;
@@ -38,7 +41,16 @@
       const converted = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.95 });
       result = await decode(Array.isArray(converted) ? converted[0] : converted);
     }
-    return { ...result, original: result.image, turns: 0, name: file.name, x: .5, y: .5, zoom: 1 };
+    let date = '';
+    try {
+      const { parse } = await import('exifr');
+      const metadata = await parse(file, { pick: ['DateTimeOriginal', 'CreateDate', 'DateTimeDigitized'] });
+      const taken = metadata?.DateTimeOriginal ?? metadata?.CreateDate ?? metadata?.DateTimeDigitized;
+      if (taken instanceof Date && !Number.isNaN(taken.getTime())) {
+        date = `${taken.getFullYear()}-${String(taken.getMonth() + 1).padStart(2, '0')}-${String(taken.getDate()).padStart(2, '0')}`;
+      }
+    } catch (e) { console.warn('Could not read photo date metadata:', e); }
+    return { ...result, original: result.image, turns: 0, date, name: file.name, x: .5, y: .5, zoom: 1 };
   }
   async function choose(event: Event) {
     const el = event.currentTarget as HTMLInputElement;
@@ -47,7 +59,7 @@
     if (!files.length) return;
     busy = true; error = '';
     const order = Array.from({ length: count }, (_, index) => index).sort((a, b) => photoNumber(a) - photoNumber(b));
-    const targets = order.slice(order.indexOf(selected));
+    const targets = order.slice(Math.max(0, order.indexOf(selected)));
     let loaded = 0;
     try {
       for (const file of files.slice(0, targets.length)) {
@@ -60,11 +72,11 @@
     } catch (e) { error = `Couldn't open ${files[loaded]?.name ?? 'that photo'}. Try a JPEG or PNG instead.`; console.error(e); }
     finally { busy = false; }
   }
-  function setLayout(value: 'grid' | 'stack') { layout = value; selected = Math.min(selected, value === 'grid' ? 3 : 1); }
-  function select(index: number) { selected = index; }
+  function setLayout(value: 'grid' | 'stack') { layout = value; if (selected >= (value === 'grid' ? 4 : 2)) selected = -1; }
+  function select(index: number) { if (dragged) { dragged = false; selected = index; return; } selected = selected === index ? -1 : index; }
   function rotate() {
     rotated = !rotated;
-    if (!photos[selected]) selected = rotated ? (layout === 'grid' ? 2 : 1) : 0;
+
   }
   function photoWidth(photo: Photo) { return photo.image instanceof HTMLImageElement ? photo.image.naturalWidth : photo.image.width; }
   function photoHeight(photo: Photo) { return photo.image instanceof HTMLImageElement ? photo.image.naturalHeight : photo.image.height; }
@@ -91,15 +103,16 @@
   function add(index: number) { selected = index; input.click(); }
   function startDrag(event: PointerEvent, index: number) {
     if (!photos[index]) return;
-    selected = index;
+    dragged = false;
     const element = event.currentTarget as HTMLDivElement;
-    element.setPointerCapture(event.pointerId);
+    (event.target as HTMLElement).setPointerCapture(event.pointerId);
     const rect = element.getBoundingClientRect();
     drag = { index, x: event.clientX, y: event.clientY, startX: photos[index]!.x, startY: photos[index]!.y, width: rotated ? rect.height : rect.width, height: rotated ? rect.width : rect.height };
   }
   function moveDrag(event: PointerEvent) {
     if (!drag) return;
     const photo = photos[drag.index]; if (!photo) return;
+    if (Math.hypot(event.clientX - drag.x, event.clientY - drag.y) > 3) { dragged = true; selected = drag.index; }
     const r = cropRect(photoWidth(photo), photoHeight(photo), layout === 'grid' ? 600 : 1200, 900, photo.zoom, drag.startX, drag.startY);
     const extraX = photoWidth(photo) - r.width;
     const extraY = photoHeight(photo) - r.height;
@@ -122,12 +135,30 @@
     error = '';
     const canvas = document.createElement('canvas'); canvas.width = rotated ? 1800 : 1200; canvas.height = rotated ? 1200 : 1800;
     const ctx = canvas.getContext('2d'); if (!ctx) { error = 'Your browser could not create the image.'; return; }
+    ctx.save();
     if (rotated) { ctx.translate(1800, 0); ctx.rotate(Math.PI / 2); }
     const width = layout === 'grid' ? 600 : 1200;
     for (let i = 0; i < count; i++) {
       const p = photos[i]!;
       const r = cropRect(photoWidth(p), photoHeight(p), width, 900, p.zoom, p.x, p.y);
       ctx.drawImage(p.image, r.x, r.y, r.width, r.height, layout === 'grid' ? (i % 2) * 600 : 0, layout === 'grid' ? Math.floor(i / 2) * 900 : i * 900, width, 900);
+    }
+    ctx.restore();
+    if (showDates) {
+      const cellWidth = rotated ? 900 : (layout === 'grid' ? 600 : 1200);
+      const cellHeight = rotated ? (layout === 'grid' ? 600 : 1200) : 900;
+      const columns = rotated || layout === 'grid' ? 2 : 1;
+      const fontSize = Math.round(canvas.width * 0.025);
+      ctx.font = `bold ${fontSize}px "Courier New", monospace`;
+      ctx.textAlign = 'right'; ctx.textBaseline = 'bottom'; ctx.letterSpacing = `${fontSize * .05}px`;
+      ctx.fillStyle = '#ffae35'; ctx.shadowColor = '#ff8300'; ctx.shadowBlur = 4;
+      ctx.strokeStyle = '#8f4218'; ctx.lineWidth = 2; ctx.lineJoin = 'round';
+      visualOrder.forEach((index, position) => {
+        const date = formatDate(photos[index]?.date ?? ''); if (!date) return;
+        const x = (position % columns + 1) * cellWidth - cellWidth * .06;
+        const y = (Math.floor(position / columns) + 1) * cellHeight - cellHeight * .07;
+        ctx.strokeText(date, x, y); ctx.fillText(date, x, y);
+      });
     }
     canvas.toBlob(blob => {
       if (!blob) { error = 'Could not export the image.'; return; }
@@ -157,13 +188,16 @@
             </div>
           {/each}
           <div class="guide left"></div><div class="guide right"></div>
-        </div></div>
-        <div class="control-block"><h2>adjust the crop</h2>{#if current}<label for="zoom">photo {photoNumber(selected)} zoom <span>{current.zoom.toFixed(1)}×</span></label><input id="zoom" type="range" min="1" max="4" step="0.01" bind:value={current.zoom} /><button class="text-button" onclick={() => { if (current) { current.zoom = 1; current.x = .5; current.y = .5; } }}>reset crop</button> <button class="text-button rotate-photo" onclick={rotatePhoto}>↻ rotate photo</button>{:else}<p>Choose a photo to adjust its crop.</p>{/if}</div>
+        </div>
+          {#if showDates}<div class:stacked={layout === 'stack'} class:landscape={rotated} class="date-overlay" aria-hidden="true">{#each visualOrder as index}<div class="date-cell">{#if photos[index]?.date}<span class="date-stamp">{formatDate(photos[index]!.date)}</span>{/if}</div>{/each}</div>{/if}
+        </div>
+        <div class="control-block image-controls" class:disabled={!current}><h2>photo controls{current ? ` · photo ${photoNumber(selected)}` : ''}</h2>{#if current}<label for="zoom">photo {photoNumber(selected)} zoom <span>{current.zoom.toFixed(1)}×</span></label><input id="zoom" type="range" min="1" max="4" step="0.01" bind:value={current.zoom} /><button class="text-button" onclick={() => { if (current) { current.zoom = 1; current.x = .5; current.y = .5; } }}>reset crop</button> <button class="text-button rotate-photo" onclick={rotatePhoto}>↻ rotate photo</button><label class="date-label" for="photo-date">photo date</label><input id="photo-date" type="date" bind:value={current.date} /><p class="hint">Leave blank to omit the date for this photo.</p>{:else}<fieldset disabled><label for="zoom-disabled">zoom</label><input id="zoom-disabled" type="range" /><button class="text-button" type="button">reset crop</button> <button class="text-button rotate-photo" type="button">↻ rotate photo</button><label class="date-label" for="date-disabled">photo date</label><input id="date-disabled" type="date" /></fieldset><p class="hint">Select a photo to adjust it.</p>{/if}</div>
         <p class="guide-note"><span></span> Red dotted lines show the variable print edge.</p>
       </section>
       <section class="controls" aria-label="Photo controls">
         <div class="control-block"><h2>1. choose a layout</h2><div class="layout-buttons"><button class:active={layout === 'grid'} onclick={() => setLayout('grid')}>4 photos <small>2 × 2</small></button><button class:active={layout === 'stack'} onclick={() => setLayout('stack')}>2 photos <small>stacked</small></button></div><button class="outline" onclick={rotate}>↻ {rotated ? 'rotate back to portrait' : 'rotate print to landscape'}</button></div>
-        <div class="control-block"><h2>2. add your photos</h2><p>Choose up to {count} photos. JPEG, PNG and HEIC are welcome.</p><input bind:this={input} type="file" accept="image/*,.heic,.heif" multiple onchange={choose} hidden /><button class="outline" onclick={() => input.click()} disabled={busy}>{busy ? 'opening photos…' : current ? `replace photo ${photoNumber(selected)}` : 'choose photos'}</button><p class="hint">Select a photo in the preview to edit it. Drag to reposition.</p></div>
+        <div class="control-block"><h2>2. add your photos</h2><p>Choose up to {count} photos. JPEG, PNG and HEIC are welcome.</p><input bind:this={input} type="file" accept="image/*,.heic,.heif" multiple onchange={choose} hidden /><button class="outline" onclick={() => { if (selected < 0) selected = visualOrder[0]; input.click(); }} disabled={busy}>{busy ? 'opening photos…' : current ? `replace photo ${photoNumber(selected)}` : 'choose photos'}</button><p class="hint">Select a photo in the preview to edit it. Drag to reposition.</p></div>
+        <div class="control-block"><h2>print options</h2><label class="date-toggle"><input type="checkbox" bind:checked={showDates} /> show photo dates</label><p class="hint">Dates come from photo metadata when available. Select a photo to change its date.</p></div>
         <div class="control-block"><h2>3. save your print</h2><button class="download" disabled={!ready || busy} onclick={download}>download image ↓</button><p class="hint">Your photos stay on your device.</p></div>
         {#if error}<p class="error" role="alert">{error}</p>{/if}
       </section>
